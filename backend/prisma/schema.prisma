@@ -1,0 +1,103 @@
+// Prisma Schema for Finance Tracker
+// Database: MongoDB (via Prisma)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("MONGODB_URI")
+}
+
+model User {
+  id            String         @id @default(auto()) @map("_id") @db.ObjectId
+  name          String
+  email         String         @unique
+  password      String?
+  provider      String?        // 'local' or 'google'
+  providerId    String?        // OAuth provider ID (e.g., Google ID)
+  avatar        String?
+  currency      String         @default("USD") // User preferred currency
+  occupation    String?
+  lifestyle     String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  transactions  Transaction[]
+  budgets       Budget[]
+  budgetHistory BudgetHistory[]
+  goals         Goal[]
+  completedLessons String[] @default([])
+
+  @@map("users")
+}
+
+model Transaction {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId      String   @map("user") @db.ObjectId
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type        String   // 'income' or 'expense'
+  category    String
+  amount      Float
+  description String   @default("")
+  date        DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([userId, date(sort: Desc)])
+  @@index([userId, category])
+  @@map("transactions")
+}
+
+model Budget {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId      String   @map("user") @db.ObjectId
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category    String
+  amount      Float
+  month       Int      // 1-12
+  year        Int
+  spent       Float    @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([userId, category, month, year])
+  @@index([userId, month, year])
+  @@index([userId, category])
+  @@map("budgets")
+}
+
+model BudgetHistory {
+  id                   String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId               String   @map("user") @db.ObjectId
+  user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category             String
+  budgetedAmount       Float    @map("budgetedAmount")
+  spentAmount          Float    @map("spentAmount")
+  month                Int      // 1-12
+  year                 Int
+  status               String   // 'under', 'over', 'met'
+  utilizationPercentage Float   @map("utilizationPercentage")
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  @@index([userId, year(sort: Desc), month(sort: Desc)])
+  @@index([userId, category])
+  @@map("budget_history")
+}
+
+model Goal {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId      String   @map("user") @db.ObjectId
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title       String
+  target      Float
+  current     Float    @default(0)
+  deadline    String
+  icon        String   @default("target")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([userId])
+  @@map("goals")
+}
